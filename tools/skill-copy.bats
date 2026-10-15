@@ -475,3 +475,4 @@ fake_session() {
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
+# | #2     | initial contract: use, pruning, refusals, edge cases (#1)     |

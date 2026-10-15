@@ -53,3 +53,4 @@ paths_section() {
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
+# | #2     | name, description, Paths, command path, companions (#1)       |
