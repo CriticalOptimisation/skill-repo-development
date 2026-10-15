@@ -41,6 +41,15 @@ paths_section() {
   [[ "$output" -ge 1 ]]
 }
 
+@test "the skill ships with its companions" {
+  # The new-library checklist: command, its tests, reference documentation,
+  # change history.
+  for f in tools/skill-copy.sh tools/skill-copy.bats README.md history.md; do
+    [ -f "$BATS_TEST_DIRNAME/../$f" ]
+  done
+  [ -x "$BATS_TEST_DIRNAME/skill-copy.sh" ]
+}
+
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
