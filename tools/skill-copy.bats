@@ -4,9 +4,14 @@
 # tools/skill-copy.sh (#3, after scm-skill#23).
 #
 # The wrapper installs this skill in a project: it runs scm-skill's tool with
-# this repository as <skill repo>. Every test uses a stub of scm-skill's tool
-# that records what it was given, so no test depends on scm-skill, and a
-# throwaway project in $WORK: nothing touches the real repositories.
+# this repository, a local path, as <skill repo>. It finds scm-skill's tool in
+# $SKILL_COPY_TOOL, or else in the scm-skill that tools/find-scm-skill.sh finds.
+#
+# Every test uses stubs of scm-skill's tool that record what they were given,
+# so no test depends on scm-skill. The wrapper and tools/find-scm-skill.sh are
+# run from a copy (a detached worktree, as scm-skill makes them) of a throwaway
+# repository of this skill, with a throwaway project in $WORK: nothing touches
+# the real repositories or sees their links.
 #
 # The copy, link and pruning contract is scm-skill's; its tests are in
 # scm-skill tools/skill-copy.bats. The tests of that contract that were here
@@ -18,16 +23,25 @@ bats_require_minimum_version 1.5.0
 USAGE="usage: skill-copy.sh use <ref> [options] | prune | status"
 
 setup() {
-  SCRIPT="$BATS_TEST_DIRNAME/skill-copy.sh"
-  REPO="$(realpath "$BATS_TEST_DIRNAME/..")"
   TMP="$(realpath "$(mktemp -d)")"
   WORK="$TMP/work"
   PROJ="$WORK/proj"
   CALLS="$TMP/calls"
-  git init -q -b main "$PROJ"
-  cd "$PROJ" || return
-  git config user.email test@example.invalid
-  git config user.name test
+  THIS="$TMP/elsewhere/skill-repo-development"
+  repo "$THIS"
+  printf '/.worktrees/\n' > "$THIS/.gitignore"
+  printf -- '---\nname: skill-repo-development\ndescription: test skill\n---\n' > "$THIS/SKILL.md"
+  mkdir -p "$THIS/tools"
+  for f in skill-copy.sh find-scm-skill.sh; do
+    if [ -f "$BATS_TEST_DIRNAME/$f" ]; then cp -p "$BATS_TEST_DIRNAME/$f" "$THIS/tools/"; fi
+  done
+  git -C "$THIS" add -A
+  git -C "$THIS" commit -qm init
+  REPO="$THIS/.worktrees/skill-$(git -C "$THIS" rev-parse HEAD | cut -c1-12)-proj"
+  git -C "$THIS" worktree add -q --detach "$REPO" HEAD
+  SCRIPT="$REPO/tools/skill-copy.sh"
+
+  repo "$PROJ"
   printf '/.worktrees/\n' > .gitignore
   git add .gitignore
   git commit -qm init
@@ -36,6 +50,14 @@ setup() {
 
 teardown() {
   rm -rf "$TMP"
+}
+
+# repo <dir>: a new repository with a test identity; leaves the shell in it.
+repo() {
+  git init -q -b main "$1"
+  cd "$1" || return
+  git config user.email test@example.invalid
+  git config user.name test
 }
 
 # stub <path> <label>: a fake scm-skill tool. It writes its label, its working
@@ -54,6 +76,14 @@ EOF
   chmod +x "$1"
 }
 
+# stub_scm_skill <dir> <label>: a fake scm-skill: a SKILL.md named scm-skill
+# and a stub tools/skill-copy.sh.
+stub_scm_skill() {
+  mkdir -p "$1"
+  printf -- '---\nname: scm-skill\ndescription: test\n---\n' > "$1/SKILL.md"
+  stub "$1/tools/skill-copy.sh" "$2"
+}
+
 # The default tool of a test: a stub named by SKILL_COPY_TOOL.
 default_stub() {
   stub "$TMP/tool/skill-copy.sh" env
@@ -62,7 +92,7 @@ default_stub() {
 
 # Everything a failed or refused run must leave unchanged.
 snapshot() {
-  (cd "$WORK" && find . -path ./proj/.git -prune -o -print | sort)
+  (cd "$TMP" && find . -name .git -prune -o -print | sort)
   cat "$PROJ/.git/info/exclude" 2>/dev/null
 }
 
@@ -74,12 +104,12 @@ snapshot() {
 # REVIEW PLACEHOLDER: the script exists and is executable -> the wrapper exists and is executable
 # (converted in place.)
 @test "the wrapper exists and is executable" {
-  [ -x "$SCRIPT" ]
+  [ -x "$BATS_TEST_DIRNAME/skill-copy.sh" ]
 }
 
 # --- delegation ------------------------------------------------------------
 
-@test "use <ref> [options] runs scm-skill's tool with use, this repository, the ref and the options, from the current directory" {
+@test "use <ref> [options] runs scm-skill's tool with use, this repository as a local path, the ref and the options, from the current directory" {
   default_stub
   run --separate-stderr "$SCRIPT" use origin/feature/7-x --frozen --skills-dir ext/skills
   [ "$status" -eq 0 ]
@@ -112,28 +142,31 @@ snapshot() {
 
 # --- finding scm-skill's tool ----------------------------------------------
 
-@test "the tool is looked for in SKILL_COPY_TOOL, then in the project's scm-skill, then next to the project, in that order" {
+@test "the tool is looked for in SKILL_COPY_TOOL, then in the scm-skill linked by the project, by this skill's repository, then next to the project, in that order" {
   stub "$TMP/tool/skill-copy.sh" env
-  stub "$TMP/installed-scm-skill/tools/skill-copy.sh" installed
+  stub_scm_skill "$TMP/linked-by-project" project
   mkdir -p .claude/skills
-  ln -s "$TMP/installed-scm-skill" .claude/skills/scm-skill
-  stub "$WORK/scm-skill/tools/skill-copy.sh" sibling
+  ln -s "$TMP/linked-by-project" .claude/skills/software-configuration-management
+  stub_scm_skill "$TMP/linked-by-this" this
+  mkdir -p "$THIS/.claude/skills"
+  ln -s "$TMP/linked-by-this" "$THIS/.claude/skills/scm-skill"
+  stub_scm_skill "$WORK/scm-skill" sibling
 
   SKILL_COPY_TOOL="$TMP/tool/skill-copy.sh" run --separate-stderr "$SCRIPT" status
   [ "$status" -eq 0 ]
   [ "$stderr" = "stub env err" ]
   [ "$(head -n 1 "$CALLS")" = env ]
 
-  run --separate-stderr "$SCRIPT" status
-  [ "$status" -eq 0 ]
-  [ "$stderr" = "stub installed err" ]
-  [ "$(head -n 1 "$CALLS")" = installed ]
-
-  rm .claude/skills/scm-skill
-  run --separate-stderr "$SCRIPT" status
-  [ "$status" -eq 0 ]
-  [ "$stderr" = "stub sibling err" ]
-  [ "$(head -n 1 "$CALLS")" = sibling ]
+  for next in project this sibling; do
+    run --separate-stderr "$SCRIPT" status
+    [ "$status" -eq 0 ]
+    [ "$stderr" = "stub $next err" ]
+    [ "$(head -n 1 "$CALLS")" = "$next" ]
+    case $next in
+      project) rm .claude/skills/software-configuration-management ;;
+      this) rm "$THIS/.claude/skills/scm-skill" ;;
+    esac
+  done
 }
 
 @test "with no tool found, the wrapper exits 1 with the installation instructions and changes nothing" {
@@ -549,4 +582,4 @@ snapshot() {
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | initial contract: use, pruning, refusals, edge cases (#1)     |
-# | #3     | reduced to the wrapper of scm-skill's tool; old tests moved   |
+# | #3     | wrapper of scm-skill's tool, found by find-scm-skill.sh; old tests moved |

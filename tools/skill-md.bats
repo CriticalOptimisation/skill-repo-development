@@ -54,6 +54,12 @@ paths_section() {
   [[ "$output" -ge 1 ]]
 }
 
+@test "SKILL.md finds scm-skill for its refusal with <skill>/tools/find-scm-skill.sh" {
+  run --separate-stderr grep -cF '<skill>/tools/find-scm-skill.sh' "$SKILL_MD"
+  [[ -z "$stderr" ]]
+  [[ "$output" -ge 1 ]]
+}
+
 @test "SKILL.md and README.md say that using this skill's skill-copy.sh is optional" {
   for f in "$SKILL_MD" "$README"; do
     run --separate-stderr grep -ciE 'skill-copy\.sh.*optional|optional.*skill-copy\.sh' "$f"
@@ -80,8 +86,14 @@ paths_section() {
   [ -x "$BATS_TEST_DIRNAME/skill-copy.sh" ]
 }
 
+@test "README.md installs from a local path, never from a URL" {
+  run --separate-stderr grep -cE 'skill-copy\.sh use [^ ]*(://|@)' "$README"
+  [[ -z "$stderr" ]]
+  [ "$output" -eq 0 ]
+}
+
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | name, description, Paths, command path, companions (#1)       |
-# | #3     | scm-skill's command, dependency, optional wrapper, no ln -s   |
+# | #3     | scm-skill's command, dependency, finder, wrapper, local paths |
