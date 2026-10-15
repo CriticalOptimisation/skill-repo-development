@@ -32,6 +32,37 @@ keys() {
       sub(/^ */, ""); sub(/:.*/, ""); print }'
 }
 
+# unpinned <file>: prints how many uses: lines of <file> are not pinned to a
+# full commit SHA followed by a "# v..." comment.
+unpinned() {
+  grep -E '^[ -]*uses:' "$1" |
+    grep -vcE '^[ -]*uses: [A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40} # v[0-9]'
+}
+
+# guard: prints the script of the step "No skipped test" of ci.yml, unindented.
+guard() {
+  awk '
+    /^ *- name: No skipped test$/ { s = 1; next }
+    s && /^ *run: \|$/ { r = 1; next }
+    r && (/^ *- / || /^[^ ]/) { exit }
+    r { sub(/^          /, ""); print }' "$CI"
+}
+
+# skip_guard <tap>: runs the guard of ci.yml, as the workflow does (bash -eo
+# pipefail), on the TAP output <tap>.
+skip_guard() {
+  local dir
+  dir="$(mktemp -d "$BATS_TEST_TMPDIR/runner.XXXXXX")"
+  cp "$1" "$dir/bats.tap"
+  RUNNER_TEMP="$dir" bash -eo pipefail -c "$(guard)"
+}
+
+# tap_of <file.bats>: runs bats on <file.bats>; its TAP output goes to
+# $BATS_TEST_TMPDIR/out.tap.
+tap_of() {
+  bats --tap "$1" > "$BATS_TEST_TMPDIR/out.tap" || true
+}
+
 @test "the workflow file exists" {
   [ -f "$CI" ]
 }
@@ -60,7 +91,7 @@ keys() {
   run grep -cE '^[ -]*uses:' "$CI"
   [ "$output" -ge 1 ]
   grep -E '^[ -]*uses:' "$CI" # shown when the test fails
-  run grep -vcE '^[ -]*uses: [A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40} # v[0-9]' <(grep -E '^[ -]*uses:' "$CI")
+  run unpinned "$CI"
   [ "$output" -eq 0 ]
 }
 
@@ -107,6 +138,53 @@ keys() {
   run --separate-stderr grep -F 'Require status checks to pass' "$README"
   [[ -z "$stderr" ]]
   [ "$status" -eq 0 ]
+}
+
+# --- Edge cases -----------------------------------------------------------
+
+@test "the skip guard is read from ci.yml whole: three lines, starting with the grep" {
+  run --separate-stderr guard
+  [[ -z "$stderr" ]]
+  [[ "${lines[0]}" == "if grep -E '^ok [0-9]+ .* # skip'"* ]]
+  [ "${#lines[@]}" -eq 3 ]
+}
+
+@test "the skip guard fails on a test that bats skipped, with or without a reason" {
+  printf '%s\n' '@test "runs" { true; }' \
+    '@test "skipped with a reason" { skip "shellcheck is not installed"; }' \
+    '@test "skipped without one" { skip; }' > "$BATS_TEST_TMPDIR/s.bats"
+  tap_of "$BATS_TEST_TMPDIR/s.bats"
+  run --separate-stderr skip_guard "$BATS_TEST_TMPDIR/out.tap"
+  [[ -z "$stderr" ]]
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"ok 2 skipped with a reason # skip shellcheck is not installed"* ]]
+  [[ "$output" == *"ok 3 skipped without one # skip"* ]]
+  [[ "$output" == *"::error::a test was skipped in CI"* ]]
+}
+
+@test "the skip guard passes a run without skips, even when a test name says skipped" {
+  printf '%s\n' '@test "a dangling link is skipped" { true; }' \
+    '@test "runs" { true; }' > "$BATS_TEST_TMPDIR/n.bats"
+  tap_of "$BATS_TEST_TMPDIR/n.bats"
+  grep -q '^ok 1 a dangling link is skipped$' "$BATS_TEST_TMPDIR/out.tap"
+  run --separate-stderr skip_guard "$BATS_TEST_TMPDIR/out.tap"
+  [[ -z "$stderr" ]]
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "the pinning check rejects a tag, a branch, a short SHA and a SHA without its version" {
+  sample="$BATS_TEST_TMPDIR/pins.yml"
+  printf '      - uses: actions/checkout@%s\n' 'v7.0.1' 'main' '3d3c42e # v7.0.1' \
+    '3d3c42e5aac5ba805825da76410c181273ba90b1' > "$sample"
+  run --separate-stderr unpinned "$sample"
+  [[ -z "$stderr" ]]
+  [ "$output" -eq 4 ]
+  printf '      - uses: actions/checkout@%s\n' \
+    '3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1' > "$sample"
+  run --separate-stderr unpinned "$sample"
+  [[ -z "$stderr" ]]
+  [ "$output" -eq 0 ]
 }
 
 # --- Change History -------------------------------------------------------
