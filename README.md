@@ -6,25 +6,39 @@ It is an add-on to [scm-skill](https://github.com/CriticalOptimisation/scm-skill
 
 ## Installation
 
-The skill is installed with scm-skill's `skill-copy.sh use`, as a fixed copy, and not in claude.ai: an installed copy has no version and goes stale. From the main worktree of the project, with scm-skill cloned next to it (see scm-skill's `README.md`, *Bootstrap*):
+The skill is installed with scm-skill's `skill-copy.sh use`, as a fixed copy, and not in claude.ai: an installed copy has no version and goes stale. **`<skill repo>` is a local path**: the one clone of this repository on the machine, which every project shares. Each project then gets its own copy in that clone's `.worktrees/`, and nothing is downloaded again. Clone this repository only if the machine has no clone yet (`git clone https://github.com/CriticalOptimisation/skill-repo-development.git`); never pass its URL to `use`, which would clone it once more next to each project that is not next to the first one.
+
+From the main worktree of the project, with scm-skill found as below:
 
 ```sh
-../scm-skill/tools/skill-copy.sh use https://github.com/CriticalOptimisation/skill-repo-development.git origin/main
+<scm-skill>/tools/skill-copy.sh use /path/to/skill-repo-development origin/main
 ```
 
-This clones this repository next to the project, if it is missing, as `../skill-repo-development`, and links `.claude/skills/skill-repo-development` to the project's copy. Run it again, with another ref, to update. scm-skill's `README.md` documents the command, its options, pruning and exit codes.
+This links `.claude/skills/skill-repo-development` to the project's copy. Run it again, with another ref, to update. scm-skill's `README.md` documents the command, its options, pruning and exit codes.
 
-**This repository's `tools/skill-copy.sh` is optional.** It does the same thing, without naming this repository:
+### Finding scm-skill
+
+`tools/find-scm-skill.sh`, run from a project, prints the directory of scm-skill on this machine, so that scm-skill is not cloned again either. Most repositories already link scm-skill, so it looks for the first skill named `scm-skill` (by the `name:` field of its `SKILL.md`, whatever the link is called), in this order:
+
+1. linked under `.claude/skills/` of the project's main worktree;
+2. linked under `.claude/skills/` of the main worktree of this skill's own repository: a project that links this skill but not scm-skill finds scm-skill through this skill's own link;
+3. a clone `../scm-skill` next to the project.
+
+Found, it prints the resolved directory and exits `0`; `<dir>/tools/skill-copy.sh use <dir> origin/main`, from the main worktree of the project, then installs scm-skill there. Not found, it exits `1`, prints nothing on stdout, and prints the installation instructions of scm-skill on stderr (`git clone https://github.com/CriticalOptimisation/scm-skill.git ../scm-skill`, then `../scm-skill/tools/skill-copy.sh use ../scm-skill origin/main`). It changes nothing, so every run gives the same answer. `SKILL.md` uses it when it refuses to run without scm-skill.
+
+### The optional wrapper
+
+**This repository's `tools/skill-copy.sh` is optional.** It does the same thing as scm-skill's command, without naming this repository:
 
 ```sh
-../skill-repo-development/tools/skill-copy.sh use origin/main [options]   # runs: <scm-skill tool> use <this repository> origin/main [options]
-../skill-repo-development/tools/skill-copy.sh prune                       # runs: <scm-skill tool> prune <this repository>
-../skill-repo-development/tools/skill-copy.sh status                      # runs: <scm-skill tool> status <this repository>
+/path/to/skill-repo-development/tools/skill-copy.sh use origin/main [options]   # runs: <scm-skill tool> use <this repository> origin/main [options]
+/path/to/skill-repo-development/tools/skill-copy.sh prune                       # runs: <scm-skill tool> prune <this repository>
+/path/to/skill-repo-development/tools/skill-copy.sh status                      # runs: <scm-skill tool> status <this repository>
 ```
 
-- It runs scm-skill's `tools/skill-copy.sh` from the current directory, with this repository as `<skill repo>`, and passes the rest of the arguments on. Its exit code, stdout and stderr are those of scm-skill's tool.
-- It looks for scm-skill's tool in `$SKILL_COPY_TOOL`, then in the project's installed scm-skill (`.claude/skills/scm-skill/tools/skill-copy.sh`), then next to the project (`../scm-skill/tools/skill-copy.sh`), both relative to the root of the project.
-- When none is found, it exits `1` and prints the installation instructions of scm-skill; it changes nothing. A usage error exits `2`, before scm-skill's tool is looked for.
+- It runs scm-skill's `tools/skill-copy.sh` from the current directory, with this repository, as a local path, as `<skill repo>`, and passes the rest of the arguments on. Its exit code, stdout and stderr are those of scm-skill's tool.
+- It runs `$SKILL_COPY_TOOL` if it is set, and otherwise the `tools/skill-copy.sh` of the scm-skill that `tools/find-scm-skill.sh` finds.
+- When none is found, it exits `1` with the installation instructions of scm-skill; it changes nothing. A usage error exits `2`, before scm-skill's tool is looked for.
 
 ## The skill-copy hook
 
@@ -42,7 +56,7 @@ On the machine: [scm-skill](https://github.com/CriticalOptimisation/scm-skill) a
 
 ## Usage
 
-From the main worktree of the skill you edit, with scm-skill's command (`S=.claude/skills/scm-skill`):
+From the main worktree of the skill you edit, with scm-skill's command (`S=$(/path/to/skill-repo-development/tools/find-scm-skill.sh)`):
 
 ```sh
 $S/tools/skill-copy.sh use . origin/main            # setup, and after each merge

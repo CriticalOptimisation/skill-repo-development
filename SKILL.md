@@ -5,7 +5,10 @@ description: Use when editing, testing or releasing an Agent Skill whose source 
 
 # Developing a skill packaged as a repository
 
-**This skill is an add-on to scm-skill. Refuse to run without scm-skill:** if the scm-skill skill is not available in this session, stop, tell the user to install it (`<skill>/README.md`, *Installation*), and do nothing else.
+**This skill is an add-on to scm-skill. Refuse to run without scm-skill.** If the scm-skill skill is not available in this session, run `<skill>/tools/find-scm-skill.sh` from the project, then stop and do nothing else. It prints where scm-skill is on this machine, the same way at every run: the first skill named `scm-skill` (by its `name:` field, whatever its link is called) linked under `.claude/skills/` of the project's main worktree, then under `.claude/skills/` of the main worktree of this skill's own repository, then a clone `../scm-skill` next to the project. Your refusal says:
+
+- when it prints a directory `<dir>`: *scm-skill is not installed in this project. It is at `<dir>`. From the main worktree of the project, run `<dir>/tools/skill-copy.sh use <dir> origin/main`, then start a new session.*
+- when it fails (exit `1`): *scm-skill is not installed in this project, and was not found on this machine*, followed by the installation instructions it printed.
 
 A skill under development is also the skill that sessions use. Any session that loads it must get **a fixed version**, so that a checkout, a commit or a branch switch never changes the skill under a running session. The rule is: **copies are fixed when they are created, and only the link moves.**
 
