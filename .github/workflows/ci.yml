@@ -1,0 +1,45 @@
+# CI of skill-repo-development (#4): bats tools/, shellcheck included, on
+# every pull request, every push to main, and by hand. Its single job, bats,
+# is the check to require on main (README.md, Continuous integration).
+#
+# Kept in block style, one key per line: tools/ci.bats reads it with awk.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash          # bash -eo pipefail: a failing bats is not hidden by tee
+
+jobs:
+  bats:
+    name: bats
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install bats and shellcheck
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends bats shellcheck
+      - name: Versions (fails if either is missing)
+        run: bats --version && shellcheck --version
+      - name: bats tools/
+        run: bats --tap tools/ | tee "$RUNNER_TEMP/bats.tap"
+      - name: No skipped test
+        run: |
+          if grep -E '^ok [0-9]+ .* # skip' "$RUNNER_TEMP/bats.tap"; then
+            echo "::error::a test was skipped in CI"; exit 1
+          fi
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
