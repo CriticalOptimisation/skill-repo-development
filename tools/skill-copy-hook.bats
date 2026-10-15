@@ -149,4 +149,4 @@ snapshot() {
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #3     | refuses .claude and .worktrees in the copy                    |
+# | #5     | refuses .claude and .worktrees in the copy (#3)               |

@@ -55,4 +55,4 @@ exit 1
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #?     | project, this skill's repository, clone next to the project (#3) |
+# | #5     | project, this skill's repository, clone next to it (#3)       |

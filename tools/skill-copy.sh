@@ -41,4 +41,4 @@ exec "$tool" "$cmd" "$repo" "$@"
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | initial version: use, prune, status (#1)                      |
-# | #?     | reduced to a wrapper of scm-skill's tool (#3)                 |
+# | #5     | reduced to a wrapper of scm-skill's tool (#3)                 |

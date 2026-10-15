@@ -196,4 +196,4 @@ snapshot() {
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #3     | project, this skill's repository, clone next to the project   |
+# | #5     | lookup order, name: match, not found, edge cases (#3)         |

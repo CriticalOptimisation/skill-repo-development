@@ -613,4 +613,4 @@ snapshot() {
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | initial contract: use, pruning, refusals, edge cases (#1)     |
-# | #3     | wrapper of scm-skill's tool, found by find-scm-skill.sh; old tests moved |
+# | #5     | wrapper of scm-skill's tool; old tests moved to scm-skill (#3) |

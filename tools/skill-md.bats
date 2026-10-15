@@ -99,4 +99,4 @@ paths_section() {
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | name, description, Paths, command path, companions (#1)       |
-# | #3     | scm-skill's command, dependency, finder, wrapper, local paths |
+# | #5     | scm-skill's command, dependency, finder, local paths (#3)     |

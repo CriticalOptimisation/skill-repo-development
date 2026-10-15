@@ -29,3 +29,8 @@ EOF
   [ "$status" -ne 0 ]
   [[ "$output" == *SC2086* ]]
 }
+
+# --- Change History -------------------------------------------------------
+# | PR     | Summary                                                       |
+# |--------|---------------------------------------------------------------|
+# | #5     | tools/ is shellcheck-clean, with a planted-finding check (#3) |

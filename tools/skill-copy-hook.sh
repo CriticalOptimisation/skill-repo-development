@@ -27,4 +27,4 @@ skill_repo_development_hook "$@"
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
-# | #?     | refuses .claude and .worktrees in the copy (#3)               |
+# | #5     | refuses .claude and .worktrees in the copy (#3)               |
