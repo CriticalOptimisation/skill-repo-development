@@ -1,10 +1,11 @@
 #!/usr/bin/env bats
-# Structural tests for SKILL.md content (#1).
+# Structural tests for SKILL.md and README.md content (#1, #3).
 
 bats_require_minimum_version 1.5.0
 
 setup() {
   SKILL_MD="$BATS_TEST_DIRNAME/../SKILL.md"
+  README="$BATS_TEST_DIRNAME/../README.md"
 }
 
 # Prints the frontmatter of SKILL.md: the lines between the first two "---".
@@ -35,10 +36,39 @@ paths_section() {
   [[ "$output" == *"readlink -f"* ]]
 }
 
-@test "SKILL.md calls the command through the skill's own directory" {
-  run --separate-stderr grep -cF '<skill>/tools/skill-copy.sh' "$SKILL_MD"
+# REVIEW PLACEHOLDER: SKILL.md calls the command through the skill's own directory -> SKILL.md calls scm-skill's command, with the edited skill's repository as <skill repo>
+# @test "SKILL.md calls the command through the skill's own directory" {
+#   run --separate-stderr grep -cF '<skill>/tools/skill-copy.sh' "$SKILL_MD"
+#   [[ -z "$stderr" ]]
+#   [[ "$output" -ge 1 ]]
+# }
+@test "SKILL.md calls scm-skill's command, with the edited skill's repository as <skill repo>" {
+  run --separate-stderr grep -cF '<scm-skill>/tools/skill-copy.sh use . ' "$SKILL_MD"
   [[ -z "$stderr" ]]
   [[ "$output" -ge 1 ]]
+}
+
+@test "SKILL.md refuses to run without scm-skill" {
+  run --separate-stderr grep -ciF 'refuse to run without scm-skill' "$SKILL_MD"
+  [[ -z "$stderr" ]]
+  [[ "$output" -ge 1 ]]
+}
+
+@test "SKILL.md and README.md say that using this skill's skill-copy.sh is optional" {
+  for f in "$SKILL_MD" "$README"; do
+    run --separate-stderr grep -ciE 'skill-copy\.sh.*optional|optional.*skill-copy\.sh' "$f"
+    [[ -z "$stderr" ]]
+    [[ "$output" -ge 1 ]]
+  done
+}
+
+@test "README.md installs the skill with skill-copy.sh use, never with ln -s" {
+  run --separate-stderr grep -cF 'skill-copy.sh use ' "$README"
+  [[ -z "$stderr" ]]
+  [[ "$output" -ge 1 ]]
+  run --separate-stderr grep -cF 'ln -s' "$README"
+  [[ -z "$stderr" ]]
+  [ "$output" -eq 0 ]
 }
 
 @test "the skill ships with its companions" {
@@ -54,3 +84,4 @@ paths_section() {
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|
 # | #2     | name, description, Paths, command path, companions (#1)       |
+# | #3     | scm-skill's command, dependency, optional wrapper, no ln -s   |
