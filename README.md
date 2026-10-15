@@ -52,7 +52,7 @@ On the skill you edit:
 - **Its base directory resolved with `readlink -f`.** Its `SKILL.md` tells sessions to resolve the base directory once, when the skill loads, and to use only the resolved path. Claude Code announces the link path, not its target; without this, a running session follows the link when it moves.
 - **`/.worktrees/` in its `.gitignore`.** The copies live there.
 
-On the machine: [scm-skill](https://github.com/CriticalOptimisation/scm-skill) and its requirements, and bash. The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later. [`shellcheck`](https://www.shellcheck.net/) is optional: `tools/shellcheck.bats` checks that `tools/*.sh` and `tools/*.bats` are shellcheck-clean, and is skipped without it.
+On the machine: [scm-skill](https://github.com/CriticalOptimisation/scm-skill) and its requirements, and bash. The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later. [`shellcheck`](https://www.shellcheck.net/) is optional on a workstation: `tools/shellcheck.bats` checks that `tools/*.sh` and `tools/*.bats` are shellcheck-clean, and is skipped without it. In CI it is required (see *Continuous integration*).
 
 ## Usage
 
@@ -72,6 +72,12 @@ See `SKILL.md` for the procedures.
 ```sh
 bats tools/
 ```
+
+### Continuous integration
+
+The workflow `CI` (`.github/workflows/ci.yml`) runs on every pull request, on every push to `main`, and by hand (`gh workflow run CI`). Its single job, and so its check, is named **`bats`**. It runs on `ubuntu-24.04`, with bats and ShellCheck from that release's packages (bats 1.10.0, ShellCheck 0.9.0). It installs both and prints their versions, then runs `bats tools/`. It fails if a test fails, and also if any test is skipped, so `tools/shellcheck.bats` always runs in CI. Its permissions are `contents: read`, and its actions are pinned to a commit SHA. Moving to a newer runner is its own issue.
+
+To make the check required on `main`: *Settings → Rules → Rulesets → Protect main → Require status checks to pass → Add checks → `bats`* (source: GitHub Actions). The check must have run once before it can be picked. Until it is required, auto-merge does not wait for it.
 
 ## Changing the skill
 
