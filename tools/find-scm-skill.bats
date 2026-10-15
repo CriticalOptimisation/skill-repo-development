@@ -142,6 +142,57 @@ snapshot() {
   [ "$(snapshot)" = "$before" ]
 }
 
+# --- edge cases ------------------------------------------------------------
+
+@test "an argument is a usage error" {
+  run --separate-stderr "$SCRIPT" extra
+  [ "$status" -eq 2 ]
+  [ "$stderr" = "find-scm-skill: usage: find-scm-skill.sh" ]
+  [ -z "$output" ]
+}
+
+@test "run from a branch worktree or a subdirectory of the project, it looks in the project's main worktree" {
+  git -C "$PROJ" config user.email test@example.invalid
+  git -C "$PROJ" config user.name test
+  printf '/.worktrees/\n' > .gitignore
+  git add .gitignore
+  git commit -qm init
+  git worktree add -q -b feature/9-x .worktrees/9-x
+  mkdir sub
+  P=$(copy_of "$SCM" proj)
+  link "$PROJ" scm-skill "$P"
+  for dir in "$PROJ/.worktrees/9-x" "$PROJ/sub"; do
+    cd "$dir"
+    run --separate-stderr "$SCRIPT"
+    [ "$status" -eq 0 ]
+    [[ -z "$stderr" ]]
+    [ "$output" = "$P" ]
+  done
+}
+
+@test "a dangling link, or a scm-skill without an executable tools/skill-copy.sh, is skipped" {
+  link "$PROJ" broken "$TMP/gone"
+  mkdir -p "$TMP/no-tool"
+  printf -- '---\nname: scm-skill\n---\n' > "$TMP/no-tool/SKILL.md"
+  link "$PROJ" scm-skill "$TMP/no-tool"
+  T=$(copy_of "$SCM" this)
+  link "$THIS" scm-skill "$T"
+  run --separate-stderr "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [[ -z "$stderr" ]]
+  [ "$output" = "$T" ]
+}
+
+@test "outside a git repository, the current directory is the project" {
+  mkdir "$WORK/plain"
+  cd "$WORK/plain"
+  skill_repo "$WORK/scm-skill" scm-skill
+  run --separate-stderr "$SCRIPT"
+  [ "$status" -eq 0 ]
+  [[ -z "$stderr" ]]
+  [ "$output" = "$WORK/scm-skill" ]
+}
+
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|

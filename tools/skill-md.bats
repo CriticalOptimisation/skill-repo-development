@@ -80,10 +80,13 @@ paths_section() {
 @test "the skill ships with its companions" {
   # The new-library checklist: command, its tests, reference documentation,
   # change history.
-  for f in tools/skill-copy.sh tools/skill-copy.bats README.md history.md; do
+  for f in tools/skill-copy.sh tools/skill-copy.bats \
+           tools/find-scm-skill.sh tools/find-scm-skill.bats \
+           tools/skill-copy-hook.sh tools/skill-copy-hook.bats README.md history.md; do
     [ -f "$BATS_TEST_DIRNAME/../$f" ]
   done
   [ -x "$BATS_TEST_DIRNAME/skill-copy.sh" ]
+  [ -x "$BATS_TEST_DIRNAME/find-scm-skill.sh" ]
 }
 
 @test "README.md installs from a local path, never from a URL" {

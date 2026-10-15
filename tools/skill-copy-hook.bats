@@ -108,6 +108,44 @@ snapshot() {
   done
 }
 
+# --- edge cases ------------------------------------------------------------
+
+@test "a regular file named .claude in the copy is refused" {
+  echo x > "$COPY/.claude"
+  run --separate-stderr source_hook
+  [ "$status" -ne 0 ]
+  [[ "$stderr" == *"skill-copy-hook: refused: $COPY/.claude is in the copy; tools that follow links would loop"* ]]
+  [[ -z "$output" ]]
+}
+
+@test "every offending path is reported once, and nothing below a refused one" {
+  mkdir -p "$COPY/.claude/x/.claude" "$COPY/a/.worktrees"
+  run --separate-stderr source_hook
+  [ "$status" -ne 0 ]
+  [[ "$stderr" == *"refused: $COPY/.claude is in the copy"* ]]
+  [[ "$stderr" == *"refused: $COPY/a/.worktrees is in the copy"* ]]
+  [[ "$stderr" != *"$COPY/.claude/x/.claude"* ]]
+  [ "$(printf '%s\n' "$stderr" | wc -l)" -eq 2 ]
+  [[ -z "$output" ]]
+}
+
+@test "the hook does not follow a link out of the copy" {
+  mkdir -p "$TMP/outside/.claude"
+  ln -s "$TMP/outside" "$COPY/lib"
+  run --separate-stderr source_hook
+  [ "$status" -eq 0 ]
+  [[ -z "$stderr" ]]
+  [[ -z "$output" ]]
+}
+
+@test "with no copy directory, the hook fails" {
+  COPY="$TMP/no-such-copy"
+  run --separate-stderr source_hook
+  [ "$status" -eq 1 ]
+  [ "$stderr" = "skill-copy-hook: no copy at $TMP/no-such-copy" ]
+  [[ -z "$output" ]]
+}
+
 # --- Change History -------------------------------------------------------
 # | PR     | Summary                                                       |
 # |--------|---------------------------------------------------------------|

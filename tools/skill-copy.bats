@@ -202,6 +202,37 @@ snapshot() {
   done
 }
 
+# --- edge cases ------------------------------------------------------------
+
+@test "a SKILL_COPY_TOOL that is not executable exits 1 and runs nothing" {
+  stub_scm_skill "$WORK/scm-skill" sibling
+  run --separate-stderr env SKILL_COPY_TOOL="$TMP/no-such-tool" "$SCRIPT" status
+  [ "$status" -eq 1 ]
+  [ "$stderr" = "skill-copy: SKILL_COPY_TOOL is not an executable: $TMP/no-such-tool" ]
+  [ -z "$output" ]
+  [ ! -e "$CALLS" ]
+}
+
+@test "run through a link to this skill, the wrapper passes the real directory of the copy" {
+  default_stub
+  mkdir -p .claude/skills
+  ln -s "$REPO" .claude/skills/skill-repo-development
+  run --separate-stderr .claude/skills/skill-repo-development/tools/skill-copy.sh status
+  [ "$status" -eq 0 ]
+  [ "$stderr" = "stub env err" ]
+  [ "$(cat "$CALLS")" = "$(printf '%s\n' env "$PROJ" status "$REPO")" ]
+}
+
+@test "run from a subdirectory, scm-skill's tool runs from that subdirectory" {
+  default_stub
+  mkdir sub
+  cd sub
+  run --separate-stderr "$SCRIPT" use origin/main
+  [ "$status" -eq 0 ]
+  [ "$stderr" = "stub env err" ]
+  [ "$(cat "$CALLS")" = "$(printf '%s\n' env "$PROJ/sub" use "$REPO" origin/main)" ]
+}
+
 # --- tests of the old contract, moved to scm-skill ---------------------------
 #
 # The copy, link and pruning code of the old tools/skill-copy.sh (#1, PR #2)
