@@ -2,43 +2,56 @@
 
 A Claude Code skill for developing other skills that are packaged as git repositories. Sessions that use such a skill while it is being edited get a **fixed copy** of it: a detached worktree at one commit, reached through a link that only moves on request. A checkout, a commit or a branch switch in the skill's repository never changes the skill under a running session, and a branch of the skill can be tested in a new session.
 
-`SKILL.md` is the entry point. `tools/skill-copy.sh` is the command it describes.
+It is an add-on to [scm-skill](https://github.com/CriticalOptimisation/scm-skill), which makes the copies and the links (`tools/skill-copy.sh` of scm-skill). `SKILL.md` is the entry point, and refuses to run without scm-skill.
 
 ## Installation
 
-The skill is linked, not copied, and not installed in claude.ai: an installed copy has no version and goes stale. Clone this repository, then, from the root of the repository of the skill you edit:
+The skill is installed with scm-skill's `skill-copy.sh use`, as a fixed copy, and not in claude.ai: an installed copy has no version and goes stale. From the main worktree of the project, with scm-skill cloned next to it (see scm-skill's `README.md`, *Bootstrap*):
 
 ```sh
-mkdir -p .claude/skills
-ln -s ../../../skill-repo-development .claude/skills/skill-repo-development   # adjust to where you cloned it
-echo "/.claude/skills/skill-repo-development" >> .git/info/exclude
+../scm-skill/tools/skill-copy.sh use https://github.com/CriticalOptimisation/skill-repo-development.git origin/main
 ```
 
-The link stays local (`.git/info/exclude`). It follows this repository's main worktree, which stays on `main`.
+This clones this repository next to the project, if it is missing, as `../skill-repo-development`, and links `.claude/skills/skill-repo-development` to the project's copy. Run it again, with another ref, to update. scm-skill's `README.md` documents the command, its options, pruning and exit codes.
+
+**This repository's `tools/skill-copy.sh` is optional.** It does the same thing, without naming this repository:
+
+```sh
+../skill-repo-development/tools/skill-copy.sh use origin/main [options]   # runs: <scm-skill tool> use <this repository> origin/main [options]
+../skill-repo-development/tools/skill-copy.sh prune                       # runs: <scm-skill tool> prune <this repository>
+../skill-repo-development/tools/skill-copy.sh status                      # runs: <scm-skill tool> status <this repository>
+```
+
+- It runs scm-skill's `tools/skill-copy.sh` from the current directory, with this repository as `<skill repo>`, and passes the rest of the arguments on. Its exit code, stdout and stderr are those of scm-skill's tool.
+- It looks for scm-skill's tool in `$SKILL_COPY_TOOL`, then in the project's installed scm-skill (`.claude/skills/scm-skill/tools/skill-copy.sh`), then next to the project (`../scm-skill/tools/skill-copy.sh`), both relative to the root of the project.
+- When none is found, it exits `1` and prints the installation instructions of scm-skill; it changes nothing. A usage error exits `2`, before scm-skill's tool is looked for.
+
+## The skill-copy hook
+
+`tools/skill-copy-hook.sh` is the hook that scm-skill's `use` sources from each copy of this skill (see scm-skill's `README.md`, *The skill-copy hook*). It refuses a copy that contains `.claude` or `.worktrees`, anywhere in it, as a directory, a file or a link, dangling or not: tools that follow links (`find -L`, `grep -R`, `diff -r`) would loop. It then prints `skill-copy-hook: refused: <path> is in the copy; tools that follow links would loop` on stderr and fails, so `use` exits `1` and the links do not move. Otherwise it is silent and changes nothing.
 
 ## Requirements
 
 On the skill you edit:
 
-- **A `name:` field** in the frontmatter of its `SKILL.md`. `skill-copy.sh` names the link after it, and refuses a commit without one.
+- **A `name:` field** in the frontmatter of its `SKILL.md`. scm-skill's `skill-copy.sh` names the link after it, and refuses a commit without one.
 - **Its base directory resolved with `readlink -f`.** Its `SKILL.md` tells sessions to resolve the base directory once, when the skill loads, and to use only the resolved path. Claude Code announces the link path, not its target; without this, a running session follows the link when it moves.
 - **`/.worktrees/` in its `.gitignore`.** The copies live there.
 
-On the machine: Linux with bash, git, `flock`, GNU coreutils (`mv -T`), `pgrep` and `ps` (procps). The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later. [`shellcheck`](https://www.shellcheck.net/) is optional: `tools/shellcheck.bats` checks that `tools/*.sh` and `tools/*.bats` are shellcheck-clean, and is skipped without it.
+On the machine: [scm-skill](https://github.com/CriticalOptimisation/scm-skill) and its requirements, and bash. The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later. [`shellcheck`](https://www.shellcheck.net/) is optional: `tools/shellcheck.bats` checks that `tools/*.sh` and `tools/*.bats` are shellcheck-clean, and is skipped without it.
 
 ## Usage
 
-From the main worktree of the skill you edit:
+From the main worktree of the skill you edit, with scm-skill's command (`S=.claude/skills/scm-skill`):
 
 ```sh
-S=.claude/skills/skill-repo-development
-$S/tools/skill-copy.sh use origin/main            # setup, and after each merge
-$S/tools/skill-copy.sh use origin/feature/7-xyz   # before starting a session that tests a branch
-$S/tools/skill-copy.sh status                     # what is current, and which copies exist
-$S/tools/skill-copy.sh prune                      # remove the copies no running session may use
+$S/tools/skill-copy.sh use . origin/main            # setup, and after each merge
+$S/tools/skill-copy.sh use . origin/feature/7-xyz   # before starting a session that tests a branch
+$S/tools/skill-copy.sh status .                     # which copies exist
+$S/tools/skill-copy.sh prune .                      # remove the copies no running session may use
 ```
 
-Copies left by a session are removed once it ends, at the next `use` or `prune`. See `SKILL.md` for the procedures, the pruning rule and the exit codes.
+See `SKILL.md` for the procedures.
 
 ## Tests
 
