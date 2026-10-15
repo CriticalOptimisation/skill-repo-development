@@ -24,7 +24,7 @@ On the skill you edit:
 - **Its base directory resolved with `readlink -f`.** Its `SKILL.md` tells sessions to resolve the base directory once, when the skill loads, and to use only the resolved path. Claude Code announces the link path, not its target; without this, a running session follows the link when it moves.
 - **`/.worktrees/` in its `.gitignore`.** The copies live there.
 
-On the machine: Linux with bash, git, `flock`, GNU coreutils (`mv -T`), `pgrep` and `ps` (procps). The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later.
+On the machine: Linux with bash, git, `flock`, GNU coreutils (`mv -T`), `pgrep` and `ps` (procps). The tests need [bats](https://github.com/bats-core/bats-core) 1.5 or later. [`shellcheck`](https://www.shellcheck.net/) is optional: `tools/shellcheck.bats` checks that `tools/*.sh` and `tools/*.bats` are shellcheck-clean, and is skipped without it.
 
 ## Usage
 
